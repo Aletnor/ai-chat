@@ -27,7 +27,7 @@
   --danger: #e87062;
   --danger-hover: #d45a4c;
   --success: #5bb98b;
-  --sidebar-width: 260px;
+  --sidebar-width: 280px;
   --scrollbar-thumb: #4a4a48;
   --scrollbar-track: transparent;
   --code-bg: #1e1e1e;
@@ -37,7 +37,7 @@
 
 [data-theme="light"] {
   --bg-primary: #f8f8f6;
-  --bg-secondary: #f0eeea;
+  --bg-secondary: #f8f8f6;
   --bg-tertiary: #e8e6e1;
   --bg-input: #ffffff;
   --text-primary: #121212;
@@ -94,11 +94,13 @@ button {
 .sidebar {
   width: var(--sidebar-width);
   background: var(--bg-secondary);
+  border-right: 1px solid rgba(31, 31, 30, 0.1);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   transition: transform 0.3s;
 }
+[data-theme="light"] .sidebar { border-right-color: rgba(31, 31, 30, 0.15); }
 
 .sidebar-header {
   padding: 12px;
@@ -134,14 +136,15 @@ button {
 }
 
 .chat-item {
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 6px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
   transition: background 0.15s;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  height: 36px;
 }
 .chat-item:hover { background: var(--bg-tertiary); }
 .chat-item.active { background: var(--accent); color: #fff; }
@@ -152,17 +155,17 @@ button {
 .chat-item-info { overflow: hidden; flex: 1; }
 
 .chat-item-title {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 430;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .chat-item-time {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .chat-item-delete {
@@ -221,7 +224,7 @@ button {
 }
 
 .message {
-  max-width: 720px;
+  max-width: 750px;
   margin: 0 auto;
   padding: 14px 0;
 }
@@ -354,20 +357,20 @@ button {
 }
 
 .input-wrapper {
-  max-width: 720px;
+  max-width: 750px;
   margin: 0 auto;
   display: flex;
   gap: 8px;
   align-items: flex-end;
   background: var(--bg-input);
-  border: 1px solid var(--border-color);
+  border: none;
   border-radius: 20px;
   padding: 6px 6px 6px 16px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.035);
+  transition: box-shadow 0.2s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.035), 0 0 0 0.5px rgba(31,31,30,0.15);
 }
 
-.input-wrapper:focus-within { border-color: var(--text-muted); box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+.input-wrapper:focus-within { box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(31,31,30,0.25); }
 
 .input-wrapper textarea {
   flex: 1;
