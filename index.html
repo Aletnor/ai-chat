@@ -524,17 +524,21 @@ button {
 .message-actions {
   display: flex;
   gap: 1px;
-  margin-top: 4px;
+  margin-top: 2px;
+  opacity: 1;
+  visibility: visible;
 }
 
 .message-user .message-actions {
   opacity: 0;
-  transition: opacity 0.15s;
+  visibility: hidden;
+  transition: opacity 0.15s, visibility 0.15s;
   justify-content: flex-end;
 }
-.message-user:hover .message-actions { opacity: 1; }
-
-.message-assistant .message-actions { opacity: 1; }
+.message-user:hover .message-actions {
+  opacity: 1;
+  visibility: visible;
+}
 
 .message-actions button {
   width: 30px;
@@ -551,11 +555,11 @@ button {
 .message-actions .btn-delete-msg:hover { color: var(--danger); }
 
 .message-actions button svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   stroke: currentColor;
   fill: none;
-  stroke-width: 2;
+  stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1013,10 +1017,10 @@ function createMessageEl(msg, msgIndex) {
   const isUser = msg.role === 'user';
   const thinkingHtml = (!isUser && msg.reasoning) ? buildThinkingHtml(msg.reasoning) : '';
 
-  const svgCopy = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
-  const svgEdit = '<svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
-  const svgRegen = '<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>';
-  const svgDelete = '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>';
+  const svgCopy = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+  const svgEdit = '<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+  const svgRegen = '<svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 11-.57-8.38L21.5 8"/></svg>';
+  const svgDelete = '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-.867 12.142A2 2 0 0116.138 20H7.862a2 2 0 01-1.995-1.858L5 6"/></svg>';
 
   const actions = [];
   actions.push(`<button class="btn-copy-msg" title="复制">${svgCopy}</button>`);
