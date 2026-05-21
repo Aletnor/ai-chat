@@ -1023,7 +1023,7 @@ button {
       </div>
       <div class="input-wrapper">
         <button class="btn-tools" id="btnTools" title="工具">☰</button>
-        <textarea id="userInput" rows="1" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"></textarea>
+        <textarea id="userInput" rows="1" placeholder="输入消息... (Ctrl+Enter 发送，Enter 换行)"></textarea>
         <button class="btn-send" id="btnSend" title="发送">↑</button>
       </div>
     </div>
@@ -1064,6 +1064,14 @@ button {
       <div class="hint">开启后 AI 会返回思考过程（需模型支持）</div>
     </div>
     <div class="settings-group">
+      <label>发送键</label>
+      <div class="theme-switcher">
+        <button id="btnSendKeyCtrl" class="active">Ctrl+Enter</button>
+        <button id="btnSendKeyEnter">Enter</button>
+      </div>
+      <div class="hint">Ctrl+Enter 发送时，回车正常换行</div>
+    </div>
+    <div class="settings-group">
       <label>主题</label>
       <div class="theme-switcher">
         <button id="btnThemeDark" class="active">深色</button>
@@ -1093,6 +1101,7 @@ const CONFIG = {
   apiFormat: 'openai',
   enableThinking: false,
   theme: 'dark',
+  sendKey: 'ctrl+enter',
 };
 
 /* ================================================================
@@ -2107,6 +2116,7 @@ function loadSettings() {
   CONFIG.apiFormat = saved.apiFormat || 'openai';
   CONFIG.enableThinking = saved.enableThinking || false;
   CONFIG.theme = saved.theme || 'dark';
+  CONFIG.sendKey = saved.sendKey || 'ctrl+enter';
 
   $('#settingApiUrl').value = CONFIG.apiUrl;
   $('#settingApiKey').value = CONFIG.apiKey;
@@ -2115,6 +2125,7 @@ function loadSettings() {
   $('#settingEnableThinking').checked = CONFIG.enableThinking;
   updateFormatHint();
   applyTheme(CONFIG.theme);
+  applySendKey(CONFIG.sendKey);
 }
 
 function saveSettings() {
@@ -2130,6 +2141,7 @@ function saveSettings() {
     apiFormat: CONFIG.apiFormat,
     enableThinking: CONFIG.enableThinking,
     theme: CONFIG.theme,
+    sendKey: CONFIG.sendKey,
   });
 }
 
@@ -2140,6 +2152,15 @@ function updateFormatHint() {
   } else {
     hint.textContent = 'OpenAI 兼容格式，如 https://api.openai.com';
   }
+}
+
+function applySendKey(key) {
+  CONFIG.sendKey = key;
+  $('#btnSendKeyCtrl').classList.toggle('active', key === 'ctrl+enter');
+  $('#btnSendKeyEnter').classList.toggle('active', key === 'enter');
+  userInputEl.placeholder = key === 'ctrl+enter'
+    ? '输入消息... (Ctrl+Enter 发送，Enter 换行)'
+    : '输入消息... (Enter 发送，Shift+Enter 换行)';
 }
 
 function applyTheme(theme) {
@@ -2202,10 +2223,15 @@ btnSend.addEventListener('click', () => {
 });
 
 userInputEl.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    if (isGenerating) return;
-    sendMessage();
+  if (e.key === 'Enter') {
+    const ctrlSend = CONFIG.sendKey === 'ctrl+enter';
+    if (ctrlSend && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      if (!isGenerating) sendMessage();
+    } else if (!ctrlSend && !e.shiftKey) {
+      e.preventDefault();
+      if (!isGenerating) sendMessage();
+    }
   }
 });
 
@@ -2225,6 +2251,8 @@ $('#btnToggleKey').addEventListener('click', () => {
 
 $('#btnThemeDark').addEventListener('click', () => { applyTheme('dark'); saveSettings(); });
 $('#btnThemeLight').addEventListener('click', () => { applyTheme('light'); saveSettings(); });
+$('#btnSendKeyCtrl').addEventListener('click', () => { applySendKey('ctrl+enter'); saveSettings(); });
+$('#btnSendKeyEnter').addEventListener('click', () => { applySendKey('enter'); saveSettings(); });
 
 // 设置面板输入框实时保存
 ['settingApiUrl', 'settingApiKey', 'settingModel'].forEach(id => {
