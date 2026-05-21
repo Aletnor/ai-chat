@@ -382,16 +382,16 @@ button {
 .btn-send {
   width: 36px;
   height: 36px;
-  background: var(--text-primary);
-  color: var(--bg-primary);
+  background: var(--accent);
+  color: #fff;
   font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: 50%;
 }
-.btn-send:hover { opacity: 0.8; }
+.btn-send:hover { background: var(--accent-hover); }
 .btn-send:disabled { opacity: 0.3; cursor: not-allowed; }
 .btn-send.btn-stop { background: var(--danger); color: #fff; }
 .btn-send.btn-stop:hover { background: var(--danger-hover); }
