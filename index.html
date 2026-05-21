@@ -634,43 +634,105 @@ button {
   stroke-linejoin: round;
 }
 
-/* 消息编辑模式 */
-.message-edit-area {
-  width: 100%;
-  min-height: 60px;
-  padding: 10px 14px;
-  border: 2px solid var(--accent);
-  border-radius: 10px;
+/* 消息编辑模式 — Claude 风格 */
+.message-edit-wrapper {
+  border: 2px solid #6b9bd2;
+  border-radius: 16px;
+  padding: 14px 16px;
   background: var(--bg-input);
+}
+
+.message-edit-wrapper textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 15px;
   font-family: inherit;
-  line-height: 1.5;
-  resize: vertical;
+  line-height: 1.6;
+  resize: none;
   outline: none;
 }
 
-.message-edit-buttons {
+.message-edit-info {
   display: flex;
+  align-items: flex-start;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 
-.message-edit-buttons button {
-  padding: 7px 18px;
-  font-size: 13px;
-  border-radius: 8px;
+.message-edit-info svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
-.message-edit-buttons .btn-confirm {
-  background: var(--text-primary);
-  color: var(--bg-primary);
+
+.message-edit-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
 }
-.message-edit-buttons .btn-confirm:hover { opacity: 0.85; }
-.message-edit-buttons .btn-cancel {
+
+.message-edit-footer button {
+  padding: 8px 20px;
+  font-size: 14px;
+  border-radius: 20px;
+}
+.message-edit-footer .btn-cancel {
   background: var(--bg-tertiary);
   color: var(--text-primary);
 }
-.message-edit-buttons .btn-cancel:hover { background: var(--border-color); }
+.message-edit-footer .btn-cancel:hover { background: var(--border-color); }
+
+.message-edit-footer .btn-save {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  font-weight: 500;
+}
+.message-edit-footer .btn-save:hover { opacity: 0.85; }
+
+/* 消息版本分支导航 */
+.message-branch-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.message-branch-nav button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  color: var(--text-muted);
+  border-radius: 6px;
+  font-size: 16px;
+}
+.message-branch-nav button:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+.message-branch-nav button:disabled { opacity: 0.3; cursor: default; }
+.message-branch-nav button:disabled:hover { background: none; color: var(--text-muted); }
+
+.branch-counter {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 28px;
+  text-align: center;
+}
 
 /* 思考链折叠块 */
 .thinking-block {
@@ -1127,6 +1189,16 @@ function createMessageEl(msg, msgIndex) {
   if (!isUser) actions.push(`<button class="btn-regen" title="重新生成">${svgRegen}</button>`);
   actions.push(`<button class="btn-delete-msg" title="删除">${svgDelete}</button>`);
 
+  const variantCount = msg.variants ? msg.variants.length : 1;
+  const activeIdx = msg.variants ? (msg.activeVariant || 0) : 0;
+  if (variantCount > 1) {
+    actions.push(`<div class="message-branch-nav">
+      <button class="btn-branch-prev" title="上一个版本"${activeIdx === 0 ? ' disabled' : ''}>&#8249;</button>
+      <span class="branch-counter">${activeIdx + 1} / ${variantCount}</span>
+      <button class="btn-branch-next" title="下一个版本"${activeIdx === variantCount - 1 ? ' disabled' : ''}>&#8250;</button>
+    </div>`);
+  }
+
   div.innerHTML = `
     <div class="message-body">
       <div class="message-thinking">${thinkingHtml}</div>
@@ -1139,6 +1211,10 @@ function createMessageEl(msg, msgIndex) {
   const regenBtn = div.querySelector('.btn-regen');
   if (regenBtn) regenBtn.addEventListener('click', () => regenerateMessage(msgIndex));
   div.querySelector('.btn-delete-msg').addEventListener('click', () => deleteMessage(msgIndex));
+  const branchPrev = div.querySelector('.btn-branch-prev');
+  const branchNext = div.querySelector('.btn-branch-next');
+  if (branchPrev) branchPrev.addEventListener('click', () => switchVariant(msgIndex, -1));
+  if (branchNext) branchNext.addEventListener('click', () => switchVariant(msgIndex, 1));
 
   return div;
 }
@@ -1155,6 +1231,36 @@ function buildThinkingHtml(text) {
 
 function scrollToBottom() {
   messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+/* ================================================================
+ *  消息版本（分支）管理
+ * ================================================================ */
+function ensureVariants(msg) {
+  if (!msg.variants) {
+    msg.variants = [{ content: msg.content, reasoning: msg.reasoning || '', timestamp: msg.timestamp }];
+    msg.activeVariant = 0;
+  }
+}
+
+function switchVariant(msgIndex, direction) {
+  const conv = getActiveConversation();
+  if (!conv) return;
+  const msg = conv.messages[msgIndex];
+  if (!msg.variants || msg.variants.length <= 1) return;
+
+  msg.variants[msg.activeVariant].content = msg.content;
+  msg.variants[msg.activeVariant].reasoning = msg.reasoning || '';
+
+  const newIdx = msg.activeVariant + direction;
+  if (newIdx < 0 || newIdx >= msg.variants.length) return;
+
+  msg.activeVariant = newIdx;
+  msg.content = msg.variants[newIdx].content;
+  msg.reasoning = msg.variants[newIdx].reasoning || '';
+
+  saveConversations();
+  renderMessages();
 }
 
 /* ================================================================
@@ -1475,33 +1581,51 @@ function startEditMessage(el, msg, msgIndex) {
   const originalContent = msg.content;
 
   actionsEl.style.display = 'none';
+
+  const infoSvg = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+
   contentEl.innerHTML = `
-    <textarea class="message-edit-area">${escapeHtml(originalContent)}</textarea>
-    <div class="message-edit-buttons">
-      <button class="btn-confirm">确认</button>
+    <div class="message-edit-wrapper">
+      <textarea class="message-edit-area">${escapeHtml(originalContent)}</textarea>
+    </div>
+    <div class="message-edit-info">
+      ${infoSvg}
+      <span>编辑此消息将创建一个新的对话分支，可使用箭头在分支间切换。</span>
+    </div>
+    <div class="message-edit-footer">
       <button class="btn-cancel">取消</button>
+      <button class="btn-save">保存</button>
     </div>`;
 
   const textarea = contentEl.querySelector('.message-edit-area');
   textarea.focus();
   textarea.style.height = textarea.scrollHeight + 'px';
-
-  contentEl.querySelector('.btn-cancel').addEventListener('click', () => {
-    renderMessages();
+  textarea.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = this.scrollHeight + 'px';
   });
 
-  contentEl.querySelector('.btn-confirm').addEventListener('click', () => {
+  contentEl.querySelector('.btn-cancel').addEventListener('click', () => renderMessages());
+
+  contentEl.querySelector('.btn-save').addEventListener('click', () => {
     const newText = textarea.value.trim();
     if (!newText) return;
-    msg.content = newText;
 
     if (msg.role === 'user') {
+      ensureVariants(msg);
+      msg.variants.push({ content: newText, timestamp: Date.now() });
+      msg.activeVariant = msg.variants.length - 1;
+      msg.content = newText;
       const conv = getActiveConversation();
       conv.messages = conv.messages.slice(0, msgIndex + 1);
       saveConversations();
       renderMessages();
       resendFromEdit(conv);
     } else {
+      msg.content = newText;
+      if (msg.variants) {
+        msg.variants[msg.activeVariant].content = newText;
+      }
       saveConversations();
       renderMessages();
     }
@@ -1555,10 +1679,71 @@ function regenerateMessage(msgIndex) {
   const conv = getActiveConversation();
   if (!conv) return;
 
-  conv.messages = conv.messages.slice(0, msgIndex);
+  const msg = conv.messages[msgIndex];
+  ensureVariants(msg);
+
+  msg.variants.push({ content: '', reasoning: '', timestamp: Date.now() });
+  msg.activeVariant = msg.variants.length - 1;
+  msg.content = '';
+  msg.reasoning = '';
+
+  conv.messages = conv.messages.slice(0, msgIndex + 1);
   saveConversations();
   renderMessages();
-  resendFromEdit(conv);
+  streamRegenerate(conv, msgIndex);
+}
+
+async function streamRegenerate(conv, aiMsgIndex) {
+  const aiMsg = conv.messages[aiMsgIndex];
+  const aiEl = messagesEl.querySelector('[data-msg-index="' + aiMsgIndex + '"]');
+  if (!aiEl) return;
+  const aiContentEl = aiEl.querySelector('.message-content');
+  aiContentEl.innerHTML = '<div class="claude-spinner">' + SPINNER_SVG + '</div>';
+
+  const apiMessages = [];
+  for (let i = 0; i < aiMsgIndex; i++) {
+    const m = conv.messages[i];
+    if (m.content) apiMessages.push({ role: m.role, content: m.content });
+  }
+
+  isGenerating = true;
+  btnSend.innerHTML = '■';
+  btnSend.classList.add('btn-stop');
+  abortController = new AbortController();
+
+  try {
+    if (CONFIG.apiFormat === 'anthropic') {
+      await streamAnthropic(apiMessages, aiMsg, aiEl, aiContentEl);
+    } else {
+      await streamOpenAI(apiMessages, aiMsg, aiEl, aiContentEl);
+    }
+  } catch (err) {
+    const noContent = !aiMsg.content && !aiMsg.reasoning;
+    if (err.name !== 'AbortError') {
+      showError(err.message === 'Failed to fetch' ? '网络错误' : err.message);
+    }
+    if (noContent && aiMsg.variants && aiMsg.variants.length > 1) {
+      aiMsg.variants.pop();
+      aiMsg.activeVariant = aiMsg.variants.length - 1;
+      const v = aiMsg.variants[aiMsg.activeVariant];
+      aiMsg.content = v.content;
+      aiMsg.reasoning = v.reasoning || '';
+    }
+  } finally {
+    aiContentEl.classList.remove('typing-cursor');
+    const sp = aiContentEl.querySelector('.claude-spinner');
+    if (sp) sp.remove();
+    isGenerating = false;
+    abortController = null;
+    btnSend.innerHTML = '↑';
+    btnSend.classList.remove('btn-stop');
+    if (aiMsg.variants) {
+      aiMsg.variants[aiMsg.activeVariant].content = aiMsg.content;
+      aiMsg.variants[aiMsg.activeVariant].reasoning = aiMsg.reasoning || '';
+    }
+    saveConversations();
+    renderMessages();
+  }
 }
 
 function deleteMessage(msgIndex) {
