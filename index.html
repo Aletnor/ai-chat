@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Chat</title>
 <!-- marked.js: Markdown 渲染 -->
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
 <!-- highlight.js: 代码高亮 -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
@@ -437,7 +437,7 @@ button {
   margin-bottom: 6px;
 }
 
-.settings-group input,
+.settings-group input:not([type="checkbox"]),
 .settings-group select {
   width: 100%;
   padding: 8px 12px;
@@ -449,7 +449,7 @@ button {
   outline: none;
 }
 
-.settings-group input:focus,
+.settings-group input:not([type="checkbox"]):focus,
 .settings-group select:focus {
   border-color: var(--accent);
 }
@@ -475,6 +475,20 @@ button {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 4px;
+}
+
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .theme-switcher {
@@ -509,6 +523,106 @@ button {
   text-align: center;
 }
 .error-toast.active { display: block; }
+
+/* 消息操作栏 */
+.message-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.message:hover .message-actions { opacity: 1; }
+
+.message-actions button {
+  padding: 3px 8px;
+  font-size: 12px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-radius: 4px;
+}
+.message-actions button:hover { background: var(--border-color); color: var(--text-primary); }
+.message-actions .btn-delete:hover { color: var(--danger); }
+
+/* 消息编辑模式 */
+.message-edit-area {
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 14px;
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.message-edit-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.message-edit-buttons button {
+  padding: 5px 14px;
+  font-size: 13px;
+}
+.message-edit-buttons .btn-confirm {
+  background: var(--accent);
+  color: #fff;
+}
+.message-edit-buttons .btn-confirm:hover { background: var(--accent-hover); }
+.message-edit-buttons .btn-cancel {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.message-edit-buttons .btn-cancel:hover { background: var(--border-color); }
+
+/* 思考链折叠块 */
+.thinking-block {
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.thinking-toggle {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+}
+.thinking-toggle:hover { background: var(--border-color); }
+
+.thinking-toggle .arrow {
+  transition: transform 0.2s;
+  display: inline-block;
+}
+.thinking-toggle.open .arrow { transform: rotate(90deg); }
+
+.thinking-content {
+  display: none;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.thinking-content.open { display: block; }
 
 /* AI 正在输入的光标动画 */
 .typing-cursor::after {
@@ -587,9 +701,16 @@ button {
   <div class="settings-panel">
     <h2>设置 <button id="btnCloseSettings">×</button></h2>
     <div class="settings-group">
+      <label>API 格式</label>
+      <select id="settingApiFormat">
+        <option value="openai">OpenAI 兼容</option>
+        <option value="anthropic">Claude 原生</option>
+      </select>
+    </div>
+    <div class="settings-group">
       <label>API Base URL</label>
       <input type="text" id="settingApiUrl" placeholder="https://api.openai.com">
-      <div class="hint">OpenAI 兼容格式，如 https://api.openai.com 或本地 Ollama http://localhost:11434</div>
+      <div class="hint" id="hintApiUrl">OpenAI 兼容格式，如 https://api.openai.com</div>
     </div>
     <div class="settings-group">
       <label>API Key</label>
@@ -601,6 +722,12 @@ button {
     <div class="settings-group">
       <label>模型名称</label>
       <input type="text" id="settingModel" placeholder="gpt-4o">
+    </div>
+    <div class="settings-group">
+      <label class="checkbox-label">
+        <input type="checkbox" id="settingEnableThinking"> 请求思考链
+      </label>
+      <div class="hint">开启后 AI 会返回思考过程（需模型支持）</div>
     </div>
     <div class="settings-group">
       <label>主题</label>
@@ -623,28 +750,40 @@ const CONFIG = {
   apiUrl: '',
   apiKey: '',
   model: 'gpt-4o',
+  apiFormat: 'openai',
+  enableThinking: false,
   theme: 'dark',
 };
 
 /* ================================================================
  *  Storage — localStorage 读写封装
  * ================================================================ */
-const Storage = {
-  get(key, fallback) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch { return fallback; }
-  },
-  set(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {
-      showError('存储空间不足，请清理旧对话');
+const Storage = (() => {
+  let canUseLS = false;
+  const memoryStore = {};
+  try { localStorage.setItem('__test__', '1'); localStorage.removeItem('__test__'); canUseLS = true; } catch {}
+  return {
+    get(key, fallback) {
+      try {
+        const raw = canUseLS ? localStorage.getItem(key) : memoryStore[key];
+        return raw ? JSON.parse(raw) : fallback;
+      } catch { return fallback; }
+    },
+    set(key, value) {
+      const json = JSON.stringify(value);
+      if (canUseLS) {
+        try { localStorage.setItem(key, json); } catch {
+          showError('存储空间不足，请清理旧对话');
+        }
+      } else {
+        memoryStore[key] = json;
+      }
+    },
+    remove(key) {
+      try { if (canUseLS) localStorage.removeItem(key); else delete memoryStore[key]; } catch {}
     }
-  },
-  remove(key) {
-    try { localStorage.removeItem(key); } catch {}
-  }
-};
+  };
+})();
 
 /* ================================================================
  *  State — 应用状态
@@ -735,11 +874,27 @@ function copyCode(id) {
   const el = document.getElementById(id);
   if (!el) return;
   const text = el.textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = el.closest('.code-block-wrapper').querySelector('.code-block-copy');
-    btn.textContent = '已复制';
-    setTimeout(() => btn.textContent = '复制', 1500);
-  });
+  const btn = el.closest('.code-block-wrapper').querySelector('.code-block-copy');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '已复制';
+      setTimeout(() => btn.textContent = '复制', 1500);
+    }).catch(() => copyFallback(text, btn));
+  } else {
+    copyFallback(text, btn);
+  }
+}
+
+function copyFallback(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  btn.textContent = '已复制';
+  setTimeout(() => btn.textContent = '复制', 1500);
 }
 
 /* ================================================================
@@ -801,6 +956,7 @@ function switchConversation(id) {
 
 function deleteConversation(id) {
   if (!confirm('确定删除这个对话吗？')) return;
+  if (id === activeConvId && isGenerating) stopGeneration();
   conversations = conversations.filter(c => c.id !== id);
   if (activeConvId === id) {
     activeConvId = conversations.length > 0 ? conversations[conversations.length - 1].id : null;
@@ -826,25 +982,53 @@ function renderMessages() {
   topbarTitle.textContent = conv.title;
   messagesEl.innerHTML = '';
 
-  conv.messages.forEach(msg => {
+  conv.messages.forEach((msg, i) => {
     if (msg.role === 'system') return;
-    const el = createMessageEl(msg);
+    const el = createMessageEl(msg, i);
     messagesEl.appendChild(el);
   });
   scrollToBottom();
 }
 
-function createMessageEl(msg) {
+function createMessageEl(msg, msgIndex) {
   const div = document.createElement('div');
   div.className = `message message-${msg.role}`;
+  div.dataset.msgIndex = msgIndex;
   const isUser = msg.role === 'user';
+  const thinkingHtml = (!isUser && msg.reasoning) ? buildThinkingHtml(msg.reasoning) : '';
+
+  const actions = [];
+  actions.push('<button class="btn-copy-msg" title="复制">复制</button>');
+  actions.push('<button class="btn-edit-msg" title="编辑">编辑</button>');
+  if (!isUser) actions.push('<button class="btn-regen" title="重新生成">重新生成</button>');
+  actions.push('<button class="btn-delete btn-delete-msg" title="删除">删除</button>');
+
   div.innerHTML = `
     <div class="message-avatar">${isUser ? 'U' : 'AI'}</div>
     <div class="message-body">
       <div class="message-role">${isUser ? '你' : 'AI'}</div>
+      <div class="message-thinking">${thinkingHtml}</div>
       <div class="message-content">${isUser ? escapeHtml(msg.content).replace(/\n/g, '<br>') : renderMarkdown(msg.content)}</div>
+      <div class="message-actions">${actions.join('')}</div>
     </div>`;
+
+  div.querySelector('.btn-copy-msg').addEventListener('click', () => copyMessage(msg));
+  div.querySelector('.btn-edit-msg').addEventListener('click', () => startEditMessage(div, msg, msgIndex));
+  const regenBtn = div.querySelector('.btn-regen');
+  if (regenBtn) regenBtn.addEventListener('click', () => regenerateMessage(msgIndex));
+  div.querySelector('.btn-delete-msg').addEventListener('click', () => deleteMessage(msgIndex));
+
   return div;
+}
+
+function buildThinkingHtml(text) {
+  if (!text) return '';
+  return `<div class="thinking-block">
+    <button class="thinking-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+      <span class="arrow">&#9654;</span> 思考过程
+    </button>
+    <div class="thinking-content">${escapeHtml(text)}</div>
+  </div>`;
 }
 
 function scrollToBottom() {
@@ -882,14 +1066,14 @@ async function sendMessage() {
   autoResizeInput();
 
   // 渲染用户消息
-  const userEl = createMessageEl(userMsg);
+  const userEl = createMessageEl(userMsg, conv.messages.length - 1);
   messagesEl.appendChild(userEl);
   scrollToBottom();
 
   // 准备 AI 消息占位
-  const aiMsg = { role: 'assistant', content: '', timestamp: Date.now() };
+  const aiMsg = { role: 'assistant', content: '', reasoning: '', timestamp: Date.now() };
   conv.messages.push(aiMsg);
-  const aiEl = createMessageEl(aiMsg);
+  const aiEl = createMessageEl(aiMsg, conv.messages.length - 1);
   const aiContentEl = aiEl.querySelector('.message-content');
   aiContentEl.classList.add('typing-cursor');
   messagesEl.appendChild(aiEl);
@@ -902,80 +1086,34 @@ async function sendMessage() {
   abortController = new AbortController();
 
   const apiMessages = conv.messages
-    .filter(m => m.role !== 'assistant' || m.content)
-    .slice(0, -1) // 去掉刚加的空 AI 消息
+    .filter(m => !(m.role === 'assistant' && !m.content))
     .map(m => ({ role: m.role, content: m.content }));
 
+  if (apiMessages.length === 0) {
+    showError('消息为空，请重试');
+    conv.messages.pop();
+    aiEl.remove();
+    isGenerating = false;
+    btnSend.innerHTML = '➤';
+    btnSend.classList.remove('btn-stop');
+    return;
+  }
+
   try {
-    const url = CONFIG.apiUrl.replace(/\/+$/, '') + '/v1/chat/completions';
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${CONFIG.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: CONFIG.model,
-        messages: apiMessages,
-        stream: true,
-      }),
-      signal: abortController.signal,
-    });
-
-    if (!response.ok) {
-      const errBody = await response.text().catch(() => '');
-      let errMsg = `API 错误 (${response.status})`;
-      if (response.status === 401) errMsg = 'API Key 无效，请检查设置';
-      else if (response.status === 429) errMsg = '请求太频繁，请稍后再试';
-      else if (response.status === 404) errMsg = 'API 地址或模型名称不正确';
-      else if (errBody) {
-        try { errMsg = JSON.parse(errBody).error?.message || errMsg; } catch {}
-      }
-      throw new Error(errMsg);
-    }
-
-    // 流式读取
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data:')) continue;
-        const data = trimmed.slice(5).trim();
-        if (data === '[DONE]') break;
-
-        try {
-          const json = JSON.parse(data);
-          const delta = json.choices?.[0]?.delta?.content;
-          if (delta) {
-            aiMsg.content += delta;
-            aiContentEl.innerHTML = renderMarkdown(aiMsg.content);
-            aiContentEl.classList.add('typing-cursor');
-            scrollToBottom();
-          }
-        } catch {}
-      }
+    if (CONFIG.apiFormat === 'anthropic') {
+      await streamAnthropic(apiMessages, aiMsg, aiEl, aiContentEl);
+    } else {
+      await streamOpenAI(apiMessages, aiMsg, aiEl, aiContentEl);
     }
   } catch (err) {
     if (err.name === 'AbortError') {
       // 用户主动停止
     } else if (err.message === 'Failed to fetch') {
       showError('网络错误，请检查 API 地址是否正确');
+      if (!aiMsg.content) { conv.messages.pop(); aiEl.remove(); }
     } else {
       showError(err.message);
-    }
-    if (!aiMsg.content) {
-      conv.messages.pop();
-      aiEl.remove();
+      if (!aiMsg.content) { conv.messages.pop(); aiEl.remove(); }
     }
   } finally {
     aiContentEl.classList.remove('typing-cursor');
@@ -988,8 +1126,315 @@ async function sendMessage() {
   }
 }
 
+/* ================================================================
+ *  OpenAI 兼容格式流式请求
+ * ================================================================ */
+async function streamOpenAI(apiMessages, aiMsg, aiEl, aiContentEl) {
+  const base = CONFIG.apiUrl.replace(/\/+$/, '');
+  const url = base + '/v1/chat/completions';
+  const body = { model: CONFIG.model, messages: apiMessages, stream: true };
+  if (CONFIG.enableThinking) {
+    body.include_reasoning = true;
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CONFIG.apiKey}` },
+    body: JSON.stringify(body),
+    signal: abortController.signal,
+  });
+
+  if (!response.ok) { throw new Error(await parseApiError(response)); }
+
+  if (!response.body || !response.body.getReader) {
+    const json = await response.json();
+    aiMsg.content = json.choices?.[0]?.message?.content || '';
+    aiContentEl.innerHTML = renderMarkdown(aiMsg.content);
+    return;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data:')) continue;
+      const data = trimmed.slice(5).trim();
+      if (data === '[DONE]') return;
+
+      try {
+        const json = JSON.parse(data);
+        const delta = json.choices?.[0]?.delta;
+        if (!delta) continue;
+        const reasoning = delta.reasoning_content || delta.reasoning;
+        if (reasoning) {
+          aiMsg.reasoning += reasoning;
+          updateThinkingBlock(aiEl, aiMsg.reasoning);
+        }
+        if (delta.content) {
+          aiMsg.content += delta.content;
+          aiContentEl.innerHTML = renderMarkdown(aiMsg.content);
+          aiContentEl.classList.add('typing-cursor');
+          scrollToBottom();
+        }
+      } catch {}
+    }
+  }
+}
+
+/* ================================================================
+ *  Claude 原生格式流式请求
+ * ================================================================ */
+async function streamAnthropic(apiMessages, aiMsg, aiEl, aiContentEl) {
+  const base = CONFIG.apiUrl.replace(/\/+$/, '');
+  const url = base + '/v1/messages';
+
+  // 分离 system 消息
+  let systemText = '';
+  const claudeMessages = [];
+  for (const m of apiMessages) {
+    if (m.role === 'system') { systemText += (systemText ? '\n' : '') + m.content; }
+    else { claudeMessages.push({ role: m.role, content: m.content }); }
+  }
+
+  const body = {
+    model: CONFIG.model,
+    messages: claudeMessages,
+    max_tokens: 8192,
+    stream: true,
+  };
+  if (systemText) body.system = systemText;
+  if (CONFIG.enableThinking) {
+    body.thinking = { type: 'enabled', budget_tokens: 4096 };
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-api-key': CONFIG.apiKey,
+    'anthropic-version': '2023-06-01',
+  };
+  if (CONFIG.enableThinking) {
+    headers['anthropic-beta'] = 'interleaved-thinking-2025-05-14';
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(body),
+    signal: abortController.signal,
+  });
+
+  if (!response.ok) { throw new Error(await parseApiError(response)); }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) continue;
+      const data = trimmed.slice(5).trim();
+      if (!data) continue;
+
+      try {
+        const json = JSON.parse(data);
+
+        if (json.type === 'content_block_delta') {
+          const delta = json.delta;
+          if (delta.type === 'thinking_delta' && delta.thinking) {
+            aiMsg.reasoning += delta.thinking;
+            updateThinkingBlock(aiEl, aiMsg.reasoning);
+          } else if (delta.type === 'text_delta' && delta.text) {
+            aiMsg.content += delta.text;
+            aiContentEl.innerHTML = renderMarkdown(aiMsg.content);
+            aiContentEl.classList.add('typing-cursor');
+            scrollToBottom();
+          }
+        } else if (json.type === 'message_stop') {
+          return;
+        } else if (json.type === 'error') {
+          throw new Error(json.error?.message || 'Claude API 错误');
+        }
+      } catch (e) {
+        if (e.message && !e.message.startsWith('Unexpected')) throw e;
+      }
+    }
+  }
+}
+
+/* ================================================================
+ *  公共工具：解析 API 错误、更新思考块
+ * ================================================================ */
+async function parseApiError(response) {
+  const errBody = await response.text().catch(() => '');
+  if (response.status === 401) return 'API Key 无效，请检查设置';
+  if (response.status === 429) return '请求太频繁，请稍后再试';
+  if (response.status === 404) return 'API 地址或模型名称不正确';
+  if (errBody) {
+    try {
+      const json = JSON.parse(errBody);
+      return json.error?.message || `API 错误 (${response.status})`;
+    } catch {}
+  }
+  return `API 错误 (${response.status})`;
+}
+
+function updateThinkingBlock(aiEl, reasoning) {
+  const thinkingEl = aiEl.querySelector('.message-thinking');
+  const existing = thinkingEl.querySelector('.thinking-content');
+  if (existing) {
+    existing.textContent = reasoning;
+  } else {
+    thinkingEl.innerHTML = buildThinkingHtml(reasoning);
+    const toggle = thinkingEl.querySelector('.thinking-toggle');
+    const content = thinkingEl.querySelector('.thinking-content');
+    if (toggle && content) { toggle.classList.add('open'); content.classList.add('open'); }
+  }
+  scrollToBottom();
+}
+
 function stopGeneration() {
   if (abortController) abortController.abort();
+}
+
+/* ================================================================
+ *  Phase 2 — 消息操作：复制、编辑、重新生成、删除
+ * ================================================================ */
+function copyMessage(msg) {
+  const text = msg.content;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => copyFallback(text, null));
+  } else {
+    copyFallback(text, null);
+  }
+  showToast('已复制到剪贴板');
+}
+
+function showToast(msg) {
+  errorToastEl.textContent = msg;
+  errorToastEl.style.background = 'var(--success)';
+  errorToastEl.classList.add('active');
+  clearTimeout(errorTimer);
+  errorTimer = setTimeout(() => {
+    errorToastEl.classList.remove('active');
+    errorToastEl.style.background = '';
+  }, 2000);
+}
+
+function startEditMessage(el, msg, msgIndex) {
+  if (isGenerating) return;
+  const contentEl = el.querySelector('.message-content');
+  const actionsEl = el.querySelector('.message-actions');
+  const originalContent = msg.content;
+
+  actionsEl.style.display = 'none';
+  contentEl.innerHTML = `
+    <textarea class="message-edit-area">${escapeHtml(originalContent)}</textarea>
+    <div class="message-edit-buttons">
+      <button class="btn-confirm">确认</button>
+      <button class="btn-cancel">取消</button>
+    </div>`;
+
+  const textarea = contentEl.querySelector('.message-edit-area');
+  textarea.focus();
+  textarea.style.height = textarea.scrollHeight + 'px';
+
+  contentEl.querySelector('.btn-cancel').addEventListener('click', () => {
+    renderMessages();
+  });
+
+  contentEl.querySelector('.btn-confirm').addEventListener('click', () => {
+    const newText = textarea.value.trim();
+    if (!newText) return;
+    msg.content = newText;
+
+    if (msg.role === 'user') {
+      const conv = getActiveConversation();
+      conv.messages = conv.messages.slice(0, msgIndex + 1);
+      saveConversations();
+      renderMessages();
+      resendFromEdit(conv);
+    } else {
+      saveConversations();
+      renderMessages();
+    }
+  });
+}
+
+async function resendFromEdit(conv) {
+  const apiMessages = conv.messages
+    .filter(m => !(m.role === 'assistant' && !m.content))
+    .map(m => ({ role: m.role, content: m.content }));
+
+  const aiMsg = { role: 'assistant', content: '', reasoning: '', timestamp: Date.now() };
+  conv.messages.push(aiMsg);
+  const aiEl = createMessageEl(aiMsg, conv.messages.length - 1);
+  const aiContentEl = aiEl.querySelector('.message-content');
+  aiContentEl.classList.add('typing-cursor');
+  messagesEl.appendChild(aiEl);
+  scrollToBottom();
+
+  isGenerating = true;
+  btnSend.innerHTML = '■';
+  btnSend.classList.add('btn-stop');
+  abortController = new AbortController();
+
+  try {
+    if (CONFIG.apiFormat === 'anthropic') {
+      await streamAnthropic(apiMessages, aiMsg, aiEl, aiContentEl);
+    } else {
+      await streamOpenAI(apiMessages, aiMsg, aiEl, aiContentEl);
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      showError(err.message === 'Failed to fetch' ? '网络错误，请检查 API 地址' : err.message);
+    }
+    if (!aiMsg.content) { conv.messages.pop(); aiEl.remove(); }
+  } finally {
+    aiContentEl.classList.remove('typing-cursor');
+    isGenerating = false;
+    abortController = null;
+    btnSend.innerHTML = '➤';
+    btnSend.classList.remove('btn-stop');
+    saveConversations();
+    renderChatList();
+  }
+}
+
+function regenerateMessage(msgIndex) {
+  if (isGenerating) return;
+  const conv = getActiveConversation();
+  if (!conv) return;
+
+  conv.messages = conv.messages.slice(0, msgIndex);
+  saveConversations();
+  renderMessages();
+  resendFromEdit(conv);
+}
+
+function deleteMessage(msgIndex) {
+  if (isGenerating) return;
+  if (!confirm('确定删除这条消息吗？')) return;
+  const conv = getActiveConversation();
+  if (!conv) return;
+  conv.messages.splice(msgIndex, 1);
+  saveConversations();
+  renderMessages();
 }
 
 /* ================================================================
@@ -1008,11 +1453,16 @@ function loadSettings() {
   CONFIG.apiUrl = saved.apiUrl || '';
   CONFIG.apiKey = saved.apiKey || '';
   CONFIG.model = saved.model || 'gpt-4o';
+  CONFIG.apiFormat = saved.apiFormat || 'openai';
+  CONFIG.enableThinking = saved.enableThinking || false;
   CONFIG.theme = saved.theme || 'dark';
 
   $('#settingApiUrl').value = CONFIG.apiUrl;
   $('#settingApiKey').value = CONFIG.apiKey;
   $('#settingModel').value = CONFIG.model;
+  $('#settingApiFormat').value = CONFIG.apiFormat;
+  $('#settingEnableThinking').checked = CONFIG.enableThinking;
+  updateFormatHint();
   applyTheme(CONFIG.theme);
 }
 
@@ -1020,12 +1470,25 @@ function saveSettings() {
   CONFIG.apiUrl = $('#settingApiUrl').value.trim();
   CONFIG.apiKey = $('#settingApiKey').value.trim();
   CONFIG.model = $('#settingModel').value.trim() || 'gpt-4o';
+  CONFIG.apiFormat = $('#settingApiFormat').value;
+  CONFIG.enableThinking = $('#settingEnableThinking').checked;
   Storage.set('settings', {
     apiUrl: CONFIG.apiUrl,
     apiKey: CONFIG.apiKey,
     model: CONFIG.model,
+    apiFormat: CONFIG.apiFormat,
+    enableThinking: CONFIG.enableThinking,
     theme: CONFIG.theme,
   });
+}
+
+function updateFormatHint() {
+  const hint = $('#hintApiUrl');
+  if ($('#settingApiFormat').value === 'anthropic') {
+    hint.textContent = 'Claude 原生格式，如 https://api.anthropic.com';
+  } else {
+    hint.textContent = 'OpenAI 兼容格式，如 https://api.openai.com';
+  }
 }
 
 function applyTheme(theme) {
@@ -1063,9 +1526,6 @@ function closeSidebar() {
 $('#btnNewChat').addEventListener('click', createConversation);
 $('#btnOpenSettings').addEventListener('click', openSettings);
 $('#btnCloseSettings').addEventListener('click', closeSettings);
-$('#settingsOverlay').addEventListener('click', (e) => {
-  if (e.target === $('#settingsOverlay')) closeSettings();
-});
 
 $('#btnToggleSidebar').addEventListener('click', () => {
   if ($('#sidebar').classList.contains('open')) closeSidebar();
@@ -1105,8 +1565,10 @@ $('#btnThemeLight').addEventListener('click', () => { applyTheme('light'); saveS
 
 // 设置面板输入框实时保存
 ['settingApiUrl', 'settingApiKey', 'settingModel'].forEach(id => {
-  document.getElementById(id).addEventListener('change', saveSettings);
+  document.getElementById(id).addEventListener('input', saveSettings);
 });
+$('#settingApiFormat').addEventListener('change', () => { updateFormatHint(); saveSettings(); });
+$('#settingEnableThinking').addEventListener('change', saveSettings);
 
 /* ================================================================
  *  初始化
