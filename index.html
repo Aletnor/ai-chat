@@ -103,21 +103,20 @@ button {
 [data-theme="light"] .sidebar { border-right-color: rgba(31, 31, 30, 0.15); }
 
 .sidebar-header {
-  padding: 12px;
-  display: flex;
-  gap: 8px;
+  padding: 8px;
 }
 
 .sidebar-header button {
-  flex: 1;
-  padding: 10px;
-  background: var(--text-primary);
-  color: var(--bg-primary);
-  font-weight: 600;
-  border-radius: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  color: var(--text-primary);
+  font-weight: 500;
+  border-radius: 8px;
   font-size: 14px;
+  text-align: left;
 }
-.sidebar-header button:hover { opacity: 0.85; }
+.sidebar-header button:hover { background: var(--bg-tertiary); }
 
 /* Sidebar footer — 用户信息 / 设置入口 */
 .sidebar-footer {
@@ -174,37 +173,41 @@ button {
   padding: 4px 8px;
 }
 
+.chat-list::before {
+  content: '对话';
+  display: block;
+  padding: 10px 12px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .chat-item {
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
   cursor: pointer;
   margin-bottom: 1px;
   transition: background 0.15s;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 36px;
 }
 .chat-item:hover { background: var(--bg-tertiary); }
-.chat-item.active { background: var(--accent); color: #fff; }
-.chat-item.active .chat-item-time { color: rgba(255,255,255,0.7); }
-.chat-item.active .chat-item-delete { color: rgba(255,255,255,0.7); }
-.chat-item.active:hover { background: var(--accent-hover); }
+.chat-item.active { background: rgba(217, 119, 87, 0.12); }
+.chat-item.active:hover { background: rgba(217, 119, 87, 0.2); }
 
 .chat-item-info { overflow: hidden; flex: 1; }
 
 .chat-item-title {
-  font-size: 13px;
-  font-weight: 430;
+  font-size: 14px;
+  font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .chat-item-time {
-  font-size: 10px;
-  color: var(--text-muted);
-  margin-top: 1px;
+  display: none;
 }
 
 .chat-item-delete {
