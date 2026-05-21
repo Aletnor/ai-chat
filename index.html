@@ -396,6 +396,7 @@ button {
 .input-area {
   padding: 12px 16px 16px;
   background: var(--bg-primary);
+  position: relative;
 }
 
 .input-wrapper {
@@ -734,6 +735,116 @@ button {
   text-align: center;
 }
 
+/* 工具菜单按钮 + 弹出面板 */
+.btn-tools {
+  width: 36px;
+  height: 36px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+}
+.btn-tools:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+
+.tools-menu {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 16px;
+  width: 180px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  z-index: 40;
+}
+.tools-menu.active { display: block; }
+
+.tools-menu-item {
+  width: 100%;
+  padding: 9px 12px;
+  background: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  text-align: left;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tools-menu-item:hover { background: var(--bg-tertiary); }
+
+.tools-menu-item svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* 删除模式 */
+.delete-mode-banner {
+  padding: 10px 16px;
+  background: rgba(232,112,98,0.1);
+  color: var(--danger);
+  font-size: 13px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.delete-mode-banner button {
+  padding: 4px 14px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.delete-mode .message {
+  cursor: pointer !important;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.delete-mode .message .message-body * { pointer-events: none; }
+.delete-mode .message.delete-highlight { background: rgba(232,112,98,0.1); }
+
+.delete-confirm-bar {
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.delete-confirm-bar .btn-confirm-delete {
+  padding: 8px 20px;
+  background: var(--danger);
+  color: #fff;
+  border-radius: 8px;
+}
+.delete-confirm-bar .btn-confirm-delete:hover { background: var(--danger-hover); }
+.delete-confirm-bar .btn-cancel-delete {
+  padding: 8px 20px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-radius: 8px;
+}
+.delete-confirm-bar .btn-cancel-delete:hover { background: var(--border-color); }
+
 /* 思考链折叠块 */
 .thinking-block {
   margin-bottom: 8px;
@@ -863,8 +974,14 @@ button {
       </div>
     </div>
 
-    <div class="input-area">
+    <div class="input-area" id="inputArea">
+      <div class="tools-menu" id="toolsMenu">
+        <button class="tools-menu-item" id="toolDeleteMode"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>删除消息</button>
+        <button class="tools-menu-item" id="toolRegen"><svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>重新生成</button>
+        <button class="tools-menu-item" id="toolContinue"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>续写</button>
+      </div>
       <div class="input-wrapper">
+        <button class="btn-tools" id="btnTools" title="工具">☰</button>
         <textarea id="userInput" rows="1" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"></textarea>
         <button class="btn-send" id="btnSend" title="发送">↑</button>
       </div>
@@ -1748,12 +1865,139 @@ async function streamRegenerate(conv, aiMsgIndex) {
 
 function deleteMessage(msgIndex) {
   if (isGenerating) return;
-  if (!confirm('确定删除这条消息吗？')) return;
   const conv = getActiveConversation();
   if (!conv) return;
-  conv.messages.splice(msgIndex, 1);
+  const count = conv.messages.length - msgIndex;
+  if (!confirm(`确定删除此消息及之后共 ${count} 条消息吗？`)) return;
+  conv.messages = conv.messages.slice(0, msgIndex);
   saveConversations();
   renderMessages();
+  renderChatList();
+}
+
+/* ================================================================
+ *  工具菜单 + 删除模式
+ * ================================================================ */
+let deleteMode = false;
+let deleteHoveredMsg = null;
+
+function toggleToolsMenu() {
+  $('#toolsMenu').classList.toggle('active');
+}
+function closeToolsMenu() {
+  $('#toolsMenu').classList.remove('active');
+}
+
+function enterDeleteMode() {
+  const conv = getActiveConversation();
+  if (!conv || conv.messages.length === 0 || isGenerating) {
+    showError('当前没有可删除的消息');
+    closeToolsMenu();
+    return;
+  }
+  closeToolsMenu();
+  deleteMode = true;
+  deleteHoveredMsg = null;
+
+  messagesEl.classList.add('delete-mode');
+  $('#inputArea').style.display = 'none';
+
+  const banner = document.createElement('div');
+  banner.className = 'delete-mode-banner';
+  banner.id = 'deleteModeBanner';
+  banner.innerHTML = '<span>点击消息选择删除起点，该消息及之后的所有消息将被删除</span>';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = '取消';
+  cancelBtn.addEventListener('click', exitDeleteMode);
+  banner.appendChild(cancelBtn);
+  messagesEl.parentElement.insertBefore(banner, messagesEl);
+}
+
+function exitDeleteMode() {
+  deleteMode = false;
+  deleteHoveredMsg = null;
+  messagesEl.classList.remove('delete-mode');
+  messagesEl.querySelectorAll('.delete-highlight').forEach(el => el.classList.remove('delete-highlight'));
+  const banner = document.getElementById('deleteModeBanner');
+  if (banner) banner.remove();
+  const bar = document.getElementById('deleteConfirmBar');
+  if (bar) bar.remove();
+  $('#inputArea').style.display = '';
+}
+
+function showDeleteConfirm(msgIndex) {
+  const conv = getActiveConversation();
+  if (!conv) return;
+  const count = conv.messages.length - msgIndex;
+
+  let bar = document.getElementById('deleteConfirmBar');
+  if (bar) bar.remove();
+  bar = document.createElement('div');
+  bar.className = 'delete-confirm-bar';
+  bar.id = 'deleteConfirmBar';
+  bar.innerHTML = '<span>将删除 ' + count + ' 条消息</span>';
+
+  const btnOk = document.createElement('button');
+  btnOk.className = 'btn-confirm-delete';
+  btnOk.textContent = '确认删除';
+  btnOk.addEventListener('click', () => {
+    conv.messages = conv.messages.slice(0, msgIndex);
+    saveConversations();
+    exitDeleteMode();
+    renderMessages();
+    renderChatList();
+  });
+
+  const btnNo = document.createElement('button');
+  btnNo.className = 'btn-cancel-delete';
+  btnNo.textContent = '取消';
+  btnNo.addEventListener('click', exitDeleteMode);
+
+  bar.appendChild(btnOk);
+  bar.appendChild(btnNo);
+  messagesEl.parentElement.appendChild(bar);
+}
+
+// 删除模式事件委托
+messagesEl.addEventListener('mouseover', (e) => {
+  if (!deleteMode) return;
+  const msgEl = e.target.closest('.message');
+  if (!msgEl || msgEl === deleteHoveredMsg) return;
+  deleteHoveredMsg = msgEl;
+  messagesEl.querySelectorAll('.delete-highlight').forEach(el => el.classList.remove('delete-highlight'));
+  let el = msgEl;
+  while (el) {
+    if (el.classList.contains('message')) el.classList.add('delete-highlight');
+    el = el.nextElementSibling;
+  }
+});
+
+messagesEl.addEventListener('click', (e) => {
+  if (!deleteMode) return;
+  const msgEl = e.target.closest('.message');
+  if (!msgEl) return;
+  e.preventDefault();
+  e.stopPropagation();
+  showDeleteConfirm(parseInt(msgEl.dataset.msgIndex));
+}, true);
+
+function toolRegenerate() {
+  closeToolsMenu();
+  const conv = getActiveConversation();
+  if (!conv || conv.messages.length === 0 || isGenerating) return;
+  for (let i = conv.messages.length - 1; i >= 0; i--) {
+    if (conv.messages[i].role === 'assistant') {
+      regenerateMessage(i);
+      return;
+    }
+  }
+}
+
+function toolContinue() {
+  closeToolsMenu();
+  if (!getActiveConversation() || isGenerating) return;
+  userInputEl.value = '请继续';
+  sendMessage();
 }
 
 /* ================================================================
@@ -1845,6 +2089,13 @@ function closeSidebar() {
 $('#btnNewChat').addEventListener('click', createConversation);
 $('#btnOpenSettings').addEventListener('click', openSettings);
 $('#btnCloseSettings').addEventListener('click', closeSettings);
+$('#btnTools').addEventListener('click', (e) => { e.stopPropagation(); toggleToolsMenu(); });
+$('#toolDeleteMode').addEventListener('click', enterDeleteMode);
+$('#toolRegen').addEventListener('click', toolRegenerate);
+$('#toolContinue').addEventListener('click', toolContinue);
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.tools-menu') && !e.target.closest('.btn-tools')) closeToolsMenu();
+});
 
 $('#btnToggleSidebar').addEventListener('click', () => {
   if ($('#sidebar').classList.contains('open')) closeSidebar();
