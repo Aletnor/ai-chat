@@ -210,48 +210,44 @@ button {
 
 .message {
   max-width: 800px;
-  margin: 0 auto 16px;
-  display: flex;
-  gap: 12px;
+  margin: 0 auto 4px;
+  padding: 12px 0;
 }
 
-.message-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+.message-user {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-  flex-shrink: 0;
+  justify-content: flex-end;
 }
 
-.message-user .message-avatar { background: var(--accent); color: #fff; }
-.message-assistant .message-avatar { background: var(--success); color: #fff; }
+.message-user .message-body {
+  max-width: 85%;
+}
+
+.message-assistant .message-body {
+  width: 100%;
+}
 
 .message-body {
-  flex: 1;
   min-width: 0;
 }
 
-.message-role {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 4px;
-}
+.message-role { display: none; }
 
 .message-content {
-  padding: 12px 16px;
-  border-radius: 12px;
   line-height: 1.7;
-  font-size: 14px;
+  font-size: 14.5px;
   word-break: break-word;
 }
 
-.message-user .message-content { background: var(--user-msg-bg); }
-.message-assistant .message-content { background: var(--ai-msg-bg); border: 1px solid var(--border-color); }
+.message-user .message-content {
+  background: var(--user-msg-bg);
+  padding: 10px 16px;
+  border-radius: 18px 18px 4px 18px;
+}
+
+.message-assistant .message-content {
+  padding: 4px 0;
+}
 
 /* Markdown 渲染样式 */
 .message-content p { margin-bottom: 8px; }
@@ -527,22 +523,42 @@ button {
 /* 消息操作栏 */
 .message-actions {
   display: flex;
-  gap: 4px;
-  margin-top: 6px;
+  gap: 1px;
+  margin-top: 4px;
+}
+
+.message-user .message-actions {
   opacity: 0;
   transition: opacity 0.15s;
+  justify-content: flex-end;
 }
-.message:hover .message-actions { opacity: 1; }
+.message-user:hover .message-actions { opacity: 1; }
+
+.message-assistant .message-actions { opacity: 1; }
 
 .message-actions button {
-  padding: 3px 8px;
-  font-size: 12px;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border-radius: 4px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  color: var(--text-muted);
+  border-radius: 6px;
 }
-.message-actions button:hover { background: var(--border-color); color: var(--text-primary); }
-.message-actions .btn-delete:hover { color: var(--danger); }
+.message-actions button:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+.message-actions .btn-delete-msg:hover { color: var(--danger); }
+
+.message-actions button svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 
 /* 消息编辑模式 */
 .message-edit-area {
@@ -997,16 +1013,19 @@ function createMessageEl(msg, msgIndex) {
   const isUser = msg.role === 'user';
   const thinkingHtml = (!isUser && msg.reasoning) ? buildThinkingHtml(msg.reasoning) : '';
 
+  const svgCopy = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+  const svgEdit = '<svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
+  const svgRegen = '<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>';
+  const svgDelete = '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>';
+
   const actions = [];
-  actions.push('<button class="btn-copy-msg" title="复制">复制</button>');
-  actions.push('<button class="btn-edit-msg" title="编辑">编辑</button>');
-  if (!isUser) actions.push('<button class="btn-regen" title="重新生成">重新生成</button>');
-  actions.push('<button class="btn-delete btn-delete-msg" title="删除">删除</button>');
+  actions.push(`<button class="btn-copy-msg" title="复制">${svgCopy}</button>`);
+  actions.push(`<button class="btn-edit-msg" title="编辑">${svgEdit}</button>`);
+  if (!isUser) actions.push(`<button class="btn-regen" title="重新生成">${svgRegen}</button>`);
+  actions.push(`<button class="btn-delete-msg" title="删除">${svgDelete}</button>`);
 
   div.innerHTML = `
-    <div class="message-avatar">${isUser ? 'U' : 'AI'}</div>
     <div class="message-body">
-      <div class="message-role">${isUser ? '你' : 'AI'}</div>
       <div class="message-thinking">${thinkingHtml}</div>
       <div class="message-content">${isUser ? escapeHtml(msg.content).replace(/\n/g, '<br>') : renderMarkdown(msg.content)}</div>
       <div class="message-actions">${actions.join('')}</div>
