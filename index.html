@@ -36,16 +36,16 @@
 }
 
 [data-theme="light"] {
-  --bg-primary: #faf9f6;
+  --bg-primary: #f8f8f6;
   --bg-secondary: #f0eeea;
   --bg-tertiary: #e8e6e1;
   --bg-input: #ffffff;
-  --text-primary: #1a1a1a;
+  --text-primary: #121212;
   --text-secondary: #5a5a5a;
   --text-muted: #999999;
   --accent: #d97757;
   --accent-hover: #c56843;
-  --user-msg-bg: #eeebe4;
+  --user-msg-bg: #efeeeb;
   --ai-msg-bg: transparent;
   --border-color: #e8e6dc;
   --danger: #d94b4b;
@@ -247,14 +247,14 @@ button {
 
 .message-content {
   line-height: 1.75;
-  font-size: 15px;
+  font-size: 16px;
   word-break: break-word;
 }
 
 .message-user .message-content {
   background: var(--user-msg-bg);
-  padding: 12px 18px;
-  border-radius: 20px 20px 4px 20px;
+  padding: 10px 16px;
+  border-radius: 12px;
 }
 
 .message-assistant .message-content {
@@ -297,7 +297,7 @@ button {
 .code-block-wrapper {
   position: relative;
   margin: 10px 0;
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
   background: var(--code-bg);
   border: 1px solid var(--border-color);
@@ -324,13 +324,13 @@ button {
 
 .code-block-wrapper pre {
   margin: 0;
-  padding: 12px;
+  padding: 14px;
   overflow-x: auto;
 }
 
 .code-block-wrapper pre code {
-  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
-  font-size: 13px;
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -364,10 +364,10 @@ button {
   border-radius: 20px;
   padding: 6px 6px 6px 16px;
   transition: border-color 0.2s, box-shadow 0.2s;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.035);
 }
 
-.input-wrapper:focus-within { border-color: var(--text-muted); box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+.input-wrapper:focus-within { border-color: var(--text-muted); box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
 
 .input-wrapper textarea {
   flex: 1;
@@ -566,8 +566,8 @@ button {
 }
 
 .message-actions button {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   display: flex;
   align-items: center;
