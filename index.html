@@ -210,17 +210,58 @@ button {
   display: none;
 }
 
-.chat-item-delete {
+.chat-item-menu-btn {
   background: none;
   color: var(--text-muted);
-  font-size: 16px;
-  padding: 4px 6px;
+  font-size: 18px;
+  padding: 2px 4px;
   border-radius: 6px;
   opacity: 0;
   flex-shrink: 0;
+  line-height: 1;
 }
-.chat-item:hover .chat-item-delete { opacity: 1; }
-.chat-item-delete:hover { color: var(--danger); background: var(--bg-tertiary); }
+.chat-item:hover .chat-item-menu-btn,
+.chat-item-menu-btn.active { opacity: 1; }
+.chat-item-menu-btn:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+
+.chat-context-menu {
+  display: none;
+  position: fixed;
+  width: 160px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  z-index: 100;
+}
+.chat-context-menu.active { display: block; }
+
+.ctx-menu-item {
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  text-align: left;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ctx-menu-item:hover { background: var(--bg-tertiary); }
+.ctx-menu-item.ctx-danger { color: var(--danger); }
+.ctx-menu-item.ctx-danger:hover { background: rgba(232,112,98,0.1); }
+
+.ctx-menu-item svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 
 /* ========== 主区域 ========== */
 .main-area {
@@ -1035,6 +1076,12 @@ button {
 <!-- 错误提示 -->
 <div class="error-toast" id="errorToast"></div>
 
+<!-- 聊天右键菜单 -->
+<div class="chat-context-menu" id="chatContextMenu">
+  <button class="ctx-menu-item" id="ctxRename"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg>重命名</button>
+  <button class="ctx-menu-item ctx-danger" id="ctxDelete"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>删除</button>
+</div>
+
 <script>
 /* ================================================================
  *  CONFIG — 所有可配置项集中管理
@@ -1207,13 +1254,12 @@ function renderChatList() {
     item.innerHTML = `
       <div class="chat-item-info">
         <div class="chat-item-title">${escapeHtml(conv.title)}</div>
-        <div class="chat-item-time">${formatTime(conv.createdAt)}</div>
       </div>
-      <button class="chat-item-delete" title="删除">×</button>`;
+      <button class="chat-item-menu-btn" title="更多">⋮</button>`;
     item.querySelector('.chat-item-info').addEventListener('click', () => switchConversation(conv.id));
-    item.querySelector('.chat-item-delete').addEventListener('click', (e) => {
+    item.querySelector('.chat-item-menu-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      deleteConversation(conv.id);
+      showChatContextMenu(conv.id, e.currentTarget);
     });
     chatListEl.appendChild(item);
   });
@@ -1228,6 +1274,48 @@ function escapeHtml(str) {
 /* ================================================================
  *  对话管理
  * ================================================================ */
+/* ================================================================
+ *  聊天右键菜单
+ * ================================================================ */
+let contextMenuConvId = null;
+
+function showChatContextMenu(convId, btnEl) {
+  const menu = $('#chatContextMenu');
+  contextMenuConvId = convId;
+  const rect = btnEl.getBoundingClientRect();
+  menu.style.top = rect.bottom + 4 + 'px';
+  menu.style.left = Math.min(rect.left, window.innerWidth - 170) + 'px';
+  menu.classList.add('active');
+  document.querySelectorAll('.chat-item-menu-btn.active').forEach(el => el.classList.remove('active'));
+  btnEl.classList.add('active');
+}
+
+function hideChatContextMenu() {
+  $('#chatContextMenu').classList.remove('active');
+  document.querySelectorAll('.chat-item-menu-btn.active').forEach(el => el.classList.remove('active'));
+  contextMenuConvId = null;
+}
+
+function renameConversation() {
+  if (!contextMenuConvId) return;
+  const conv = conversations.find(c => c.id === contextMenuConvId);
+  if (!conv) return;
+  const newTitle = prompt('重命名对话：', conv.title);
+  if (newTitle && newTitle.trim()) {
+    conv.title = newTitle.trim();
+    saveConversations();
+    renderChatList();
+    if (conv.id === activeConvId) topbarTitle.textContent = conv.title;
+  }
+  hideChatContextMenu();
+}
+
+function contextDeleteConversation() {
+  if (!contextMenuConvId) return;
+  deleteConversation(contextMenuConvId);
+  hideChatContextMenu();
+}
+
 function createConversation() {
   const conv = {
     id: generateId(),
@@ -2089,6 +2177,11 @@ function closeSidebar() {
 $('#btnNewChat').addEventListener('click', createConversation);
 $('#btnOpenSettings').addEventListener('click', openSettings);
 $('#btnCloseSettings').addEventListener('click', closeSettings);
+$('#ctxRename').addEventListener('click', renameConversation);
+$('#ctxDelete').addEventListener('click', contextDeleteConversation);
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.chat-context-menu') && !e.target.closest('.chat-item-menu-btn')) hideChatContextMenu();
+});
 $('#btnTools').addEventListener('click', (e) => { e.stopPropagation(); toggleToolsMenu(); });
 $('#toolDeleteMode').addEventListener('click', enterDeleteMode);
 $('#toolRegen').addEventListener('click', toolRegenerate);
